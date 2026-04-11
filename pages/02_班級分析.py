@@ -1,0 +1,83 @@
+# pages/02_班級分析.py
+import streamlit as st
+import pandas as pd
+from auth import require_auth
+from src.stats import get_subject_cols, class_stats, subject_distribution, student_rankings
+from ui.charts import bar_chart, distribution_chart
+
+st.set_page_config(page_title="班級分析", layout="wide")
+require_auth()
+
+if "exam" not in st.session_state:
+    st.warning("請先在主頁選擇考試資料")
+    st.stop()
+
+exam = st.session_state["exam"]
+df = exam.scores_df
+subjects = get_subject_cols(df)
+classes = sorted(df["班級"].unique().tolist())
+
+st.title(f"🏫 班級分析 — {exam.exam_name}")
+
+col1, col2 = st.columns(2)
+with col1:
+    selected_class = st.selectbox("選擇班級", classes)
+with col2:
+    selected_subject = st.selectbox("選擇科目", subjects)
+
+st.divider()
+
+# ── 統計摘要 ──────────────────────────────────────────────────
+stats = class_stats(df, selected_class, selected_subject)
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("平均分", stats["平均"])
+c2.metric("最高分", stats["最高分"])
+c3.metric("最低分", stats["最低分"])
+c4.metric("不及格人數", f"{stats['不及格人數']} 人",
+          delta=f"{stats['不及格比例']:.0%}", delta_color="inverse")
+
+# ── 分布圖 ────────────────────────────────────────────────────
+dist = subject_distribution(df, selected_class, selected_subject)
+fig = distribution_chart(dist, f"{selected_class} {selected_subject} 成績分布")
+st.plotly_chart(fig, use_container_width=True)
+
+# ── 學生排名 ──────────────────────────────────────────────────
+st.subheader(f"{selected_class} 學生排名")
+rankings = student_rankings(df, selected_class)
+rank_col = f"班級排名_{selected_subject}"
+display_cols = [c for c in ["姓名", selected_subject, rank_col] if c in rankings.columns]
+st.dataframe(
+    rankings[display_cols].sort_values(rank_col),
+    use_container_width=True, hide_index=True
+)
+
+# ── 各科統計 ──────────────────────────────────────────────────
+st.subheader(f"{selected_class} 各科統計")
+summary_rows = []
+for subj in subjects:
+    s = class_stats(df, selected_class, subj)
+    summary_rows.append({
+        "科目": subj, "平均": s["平均"], "最高": s["最高分"], "最低": s["最低分"],
+        "不及格人數": s["不及格人數"], "不及格比例": f"{s['不及格比例']:.0%}",
+    })
+st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+# ── 跨考試趨勢（若有多筆資料）────────────────────────────────
+from src.storage import list_exams, load_exam as _load_exam
+from src.trends import class_trend
+from ui.charts import line_chart
+
+all_exam_ids = list_exams()
+if len(all_exam_ids) >= 2:
+    st.divider()
+    st.subheader(f"{selected_class} 跨考試趨勢")
+    exams_data = []
+    for eid in all_exam_ids:
+        rec = _load_exam(eid)
+        if rec is not None:
+            exams_data.append((rec.exam_name, rec.scores_df))
+    if exams_data:
+        trend_df = class_trend(exams_data, selected_class, selected_subject)
+        fig_trend = line_chart(trend_df, "考試", "平均",
+                               f"{selected_class} {selected_subject} 跨考試平均走勢")
+        st.plotly_chart(fig_trend, use_container_width=True)
