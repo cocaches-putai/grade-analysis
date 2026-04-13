@@ -4,7 +4,11 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 from auth import require_auth
-from src.loader import validate_scores_df, load_scores_from_df, validate_items_df, load_items_from_df
+from src.loader import (
+    validate_scores_df, load_scores_from_df,
+    validate_items_df, load_items_from_df,
+    is_school_format, preprocess_school_excel,
+)
 from src.models import ExamRecord
 from src.storage import save_exam, load_exam, list_exams, delete_exam
 
@@ -56,6 +60,12 @@ with st.expander("➕ 上傳新考試成績"):
 
     if st.button("上傳並儲存") and exam_id and exam_name and scores_file:
         df = pd.read_excel(scores_file)
+        preprocess_warnings = []
+        if is_school_format(df):
+            df, preprocess_warnings = preprocess_school_excel(df)
+            st.info("✅ 偵測到學校成績系統格式，已自動轉換")
+        for w in preprocess_warnings:
+            st.warning(f"⚠️ {w}")
         errors = validate_scores_df(df)
         if errors:
             for e in errors:
