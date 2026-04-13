@@ -95,7 +95,9 @@ with tab2:
             st.warning("根據教師對應表，找不到對應的班級成績資料")
         else:
             summary_display = summary.copy()
-            summary_display["不及格比例"] = summary_display["不及格比例"].map("{:.0%}".format)
+            summary_display["不及格比例"] = summary_display["不及格比例"].apply(
+                lambda v: f"{v:.0%}" if v is not None else "—"
+            )
             st.dataframe(summary_display, use_container_width=True, hide_index=True)
 
             st.divider()

@@ -33,7 +33,9 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.dataframe(
     comparison[["班級", "任課教師", "平均", "最高分", "最低分", "不及格人數", "不及格比例"]].assign(
-        不及格比例=lambda x: x["不及格比例"].map("{:.0%}".format)
+        不及格比例=lambda x: x["不及格比例"].apply(
+            lambda v: f"{v:.0%}" if v is not None else "—"
+        )
     ),
     use_container_width=True, hide_index=True
 )

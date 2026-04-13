@@ -33,8 +33,9 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("平均分", stats["平均"])
 c2.metric("最高分", stats["最高分"])
 c3.metric("最低分", stats["最低分"])
+fail_delta = f"{stats['不及格比例']:.0%}" if stats["不及格比例"] is not None else "—"
 c4.metric("不及格人數", f"{stats['不及格人數']} 人",
-          delta=f"{stats['不及格比例']:.0%}", delta_color="inverse")
+          delta=fail_delta, delta_color="inverse")
 
 # ── 分布圖 ────────────────────────────────────────────────────
 dist = subject_distribution(df, selected_class, selected_subject)
@@ -56,9 +57,10 @@ st.subheader(f"{selected_class} 各科統計")
 summary_rows = []
 for subj in subjects:
     s = class_stats(df, selected_class, subj)
+    fail_rate = f"{s['不及格比例']:.0%}" if s["不及格比例"] is not None else "—"
     summary_rows.append({
         "科目": subj, "平均": s["平均"], "最高": s["最高分"], "最低": s["最低分"],
-        "不及格人數": s["不及格人數"], "不及格比例": f"{s['不及格比例']:.0%}",
+        "不及格人數": s["不及格人數"], "不及格比例": fail_rate,
     })
 st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
