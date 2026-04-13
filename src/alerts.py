@@ -18,7 +18,7 @@ def fail_rate_alerts(df: pd.DataFrame, threshold: float = ALERT_FAIL_RATE_THRESH
     for grade_class in df["班級"].unique():
         for subj in subjects:
             stats = class_stats(df, grade_class, subj)
-            if stats["不及格比例"] >= threshold:
+            if stats["不及格比例"] is not None and stats["不及格比例"] >= threshold:
                 alerts.append({
                     "班級": grade_class,
                     "科目": subj,
@@ -39,7 +39,7 @@ def difficulty_alerts(df: pd.DataFrame, threshold: float = ALERT_EASY_THRESHOLD)
     for grade_class in df["班級"].unique():
         for subj in subjects:
             stats = class_stats(df, grade_class, subj)
-            if stats["平均"] < threshold:
+            if stats["平均"] is not None and stats["平均"] < threshold:
                 alerts.append(
                     f"【{grade_class}】{subj} 班級平均 {stats['平均']} 分，"
                     f"低於 {threshold} 分，試卷可能偏難"

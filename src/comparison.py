@@ -24,6 +24,8 @@ def cross_class_comparison(
         stats["任課教師"] = teacher
         rows.append(stats)
     result = pd.DataFrame(rows)
+    # 過濾掉無資料的班級（該班沒有此科目）
+    result = result[result["人數"] > 0]
     return result.sort_values("班級").reset_index(drop=True)
 
 

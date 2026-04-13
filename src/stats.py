@@ -18,6 +18,12 @@ def get_subject_cols(df: pd.DataFrame) -> List[str]:
 def class_stats(df: pd.DataFrame, grade_class: str, subject: str) -> Dict:
     """計算單一班級單一科目的統計摘要"""
     subset = df[df["班級"] == grade_class][subject].dropna()
+    if subset.empty:
+        return {
+            "班級": grade_class, "科目": subject, "人數": 0,
+            "平均": None, "最高分": None, "最低分": None,
+            "標準差": None, "不及格人數": 0, "不及格比例": None,
+        }
     fail_mask = subset < PASSING_SCORE
     return {
         "班級": grade_class,
