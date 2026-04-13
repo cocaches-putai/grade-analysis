@@ -1,4 +1,5 @@
 # app.py
+import io
 import json
 from pathlib import Path
 import streamlit as st
@@ -120,16 +121,70 @@ if teacher_map:
     for subj, class_map in teacher_map.items():
         for cls, tname in class_map.items():
             rows.append({"科目": subj, "班級": cls, "教師姓名": tname})
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    current_map_df = pd.DataFrame(rows)
+    st.dataframe(current_map_df, use_container_width=True, hide_index=True)
 
-with st.expander("➕ 新增 / 修改教師對應"):
+    # 下載目前對應表
+    buf = io.BytesIO()
+    current_map_df.to_excel(buf, index=False)
+    st.download_button(
+        "⬇ 下載目前對應表 Excel",
+        data=buf.getvalue(),
+        file_name="教師對應表.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+else:
+    st.info("尚無資料，請下載範本填寫後上傳。")
+    # 產生範本（含說明列）
+    template_df = pd.DataFrame([
+        {"科目": "國語文", "班級": "高一甲", "教師姓名": "王小明"},
+        {"科目": "國語文", "班級": "高一乙", "教師姓名": "李美華"},
+        {"科目": "數學",   "班級": "高一甲", "教師姓名": "陳志遠"},
+    ])
+    buf0 = io.BytesIO()
+    template_df.to_excel(buf0, index=False)
+    st.download_button(
+        "⬇ 下載填寫範本",
+        data=buf0.getvalue(),
+        file_name="教師對應表_範本.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+# ── 批次上傳 ──────────────────────────────────────────────────
+with st.expander("📤 批次匯入教師對應表（上傳 Excel）"):
+    st.caption("Excel 需包含三欄：**科目**、**班級**、**教師姓名**，一列一筆對應。")
+    uploaded_map = st.file_uploader("選擇 Excel 檔", type=["xlsx"], key="upload_teacher_map")
+    if uploaded_map and st.button("匯入並覆蓋現有對應表"):
+        try:
+            map_df = pd.read_excel(uploaded_map)
+            required = {"科目", "班級", "教師姓名"}
+            if not required.issubset(map_df.columns):
+                st.error(f"Excel 缺少必要欄位，需包含：{required}")
+            else:
+                new_map: dict = {}
+                for _, row in map_df.iterrows():
+                    subj = str(row["科目"]).strip()
+                    cls  = str(row["班級"]).strip()
+                    name = str(row["教師姓名"]).strip()
+                    if subj and cls and name:
+                        new_map.setdefault(subj, {})[cls] = name
+                DATA_DIR.mkdir(exist_ok=True)
+                with open(TEACHER_MAP_PATH, "w", encoding="utf-8") as f:
+                    json.dump(new_map, f, ensure_ascii=False, indent=2)
+                st.success(f"✅ 匯入完成，共 {len(map_df)} 筆對應")
+                st.rerun()
+        except Exception as e:
+            st.error(f"讀取失敗：{e}")
+
+# ── 單筆新增 ──────────────────────────────────────────────────
+with st.expander("➕ 單筆新增 / 修改"):
     c1, c2, c3 = st.columns(3)
     with c1:
-        t_subject = st.text_input("科目", placeholder="國文")
+        t_subject = st.text_input("科目", placeholder="國語文")
     with c2:
-        t_class = st.text_input("班級", placeholder="國一甲")
+        t_class = st.text_input("班級", placeholder="高一甲")
     with c3:
-        t_name = st.text_input("教師姓名", placeholder="王老師")
+        t_name = st.text_input("教師姓名", placeholder="王小明")
 
     if st.button("儲存對應") and t_subject and t_class and t_name:
         if t_subject not in teacher_map:
