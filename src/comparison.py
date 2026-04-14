@@ -73,8 +73,8 @@ def fairness_check(
             max_class = tier_df.loc[tier_df["平均"].idxmax(), "班級"]
             min_class = tier_df.loc[tier_df["平均"].idxmin(), "班級"]
             alerts.append(
-                f"【{subject}｜{tier_name}】{max_class}（{max_avg:.1f}分）與"
-                f" {min_class}（{min_avg:.1f}分）差距 {gap:.1f} 分，"
+                f"【{subject}｜{tier_name}】{max_class}（{max_avg:.2f}分）與"
+                f" {min_class}（{min_avg:.2f}分）差距 {gap:.2f} 分，"
                 f"建議確認是否為出題難易度差異"
             )
     else:
@@ -87,8 +87,8 @@ def fairness_check(
             max_class = comparison.loc[comparison["平均"].idxmax(), "班級"]
             min_class = comparison.loc[comparison["平均"].idxmin(), "班級"]
             alerts.append(
-                f"【{subject}】{max_class}（{max_avg:.1f}分）與"
-                f" {min_class}（{min_avg:.1f}分）差距 {gap:.1f} 分，"
+                f"【{subject}】{max_class}（{max_avg:.2f}分）與"
+                f" {min_class}（{min_avg:.2f}分）差距 {gap:.2f} 分，"
                 f"建議確認是否為出題難易度差異"
             )
 
@@ -122,9 +122,9 @@ def class_subject_deviation(
         deviation = avg - overall_avg
         rows.append({
             "科目": subj,
-            "科目平均": round(avg, 1),
-            "全科平均": round(overall_avg, 1),
-            "偏差": round(deviation, 1),
+            "科目平均": round(avg, 2),
+            "全科平均": round(overall_avg, 2),
+            "偏差": round(deviation, 2),
             "⚠️": "偏低" if deviation <= -deviation_threshold else "",
         })
 
@@ -169,9 +169,9 @@ def below_class_average_summary(
         rows.append({
             "班級": grade_class,
             "任課教師": teacher,
-            f"{subject}平均": round(subj_avg, 1),
-            "全科平均": round(overall_avg, 1),
-            "偏差": round(deviation, 1),
+            f"{subject}平均": round(subj_avg, 2),
+            "全科平均": round(overall_avg, 2),
+            "偏差": round(deviation, 2),
             "⚠️": "偏低" if deviation <= -deviation_threshold else "",
         })
 
@@ -214,12 +214,12 @@ def teacher_consistency(
             continue
 
         avgs = [r["平均"] for r in class_avgs]
-        gap = round(max(avgs) - min(avgs), 1)
+        gap = round(max(avgs) - min(avgs), 2)
         for r in class_avgs:
             rows.append({
                 "教師姓名": teacher,
                 "班級": r["班級"],
-                "平均": round(r["平均"], 1),
+                "平均": round(r["平均"], 2),
                 "班間最大差距": gap,
                 "⚠️": "差距偏大" if gap >= gap_threshold else "",
             })

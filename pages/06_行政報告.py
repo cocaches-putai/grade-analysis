@@ -44,7 +44,7 @@ with tab1:
         grade_df = df[df["年級"] == grade]
         row = {"年級": grade, "班級數": grade_df["班級"].nunique(), "學生數": len(grade_df)}
         for subj in subjects:
-            row[subj] = round(grade_df[subj].mean(), 1)
+            row[subj] = round(grade_df[subj].mean(), 2)
         grade_rows.append(row)
 
     grade_summary = pd.DataFrame(grade_rows)

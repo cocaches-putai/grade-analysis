@@ -87,7 +87,7 @@ else:
             teacher_note = f"（{row['任課教師']}）" if row["任課教師"] else ""
             st.warning(
                 f"【{row['班級']}】{teacher_note} {selected_subject} 平均 {row[f'{selected_subject}平均']} 分，"
-                f"低於該班全科平均 {row['全科平均']} 分，偏差 {abs(row['偏差']):.1f} 分"
+                f"低於該班全科平均 {row['全科平均']} 分，偏差 {abs(row['偏差']):.2f} 分"
             )
     else:
         st.success(f"各班 {selected_subject} 成績均在自身全科平均水準內 ✅")

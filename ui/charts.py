@@ -14,7 +14,7 @@ def bar_chart(
     threshold_line: float = None
 ) -> go.Figure:
     """通用長條圖，可選擇性加入門檻線"""
-    fig = px.bar(df, x=x_col, y=y_col, title=title, color=color_col, text_auto=".1f")
+    fig = px.bar(df, x=x_col, y=y_col, title=title, color=color_col, text_auto=".2f")
     if threshold_line is not None:
         fig.add_hline(
             y=threshold_line,
