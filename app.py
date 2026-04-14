@@ -10,6 +10,7 @@ from src.loader import (
     validate_items_df, load_items_from_df,
     is_school_format, preprocess_school_excel,
 )
+from src.course_parser import parse_course_excel, to_teacher_map
 from src.models import ExamRecord
 from src.storage import save_exam, load_exam, list_exams, delete_exam
 
@@ -150,8 +151,44 @@ else:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
-# ── 批次上傳 ──────────────────────────────────────────────────
-with st.expander("📤 批次匯入教師對應表（上傳 Excel）"):
+# ── 從配課表自動匯入 ───────────────────────────────────────────
+with st.expander("🗂️ 從配課表 Excel 自動匯入（推薦）"):
+    st.caption("直接上傳學校配課表 Excel（含「國英數」和「自社藝能」工作表），系統自動解析。")
+    uploaded_course = st.file_uploader("選擇配課表 Excel", type=["xlsx"], key="upload_course")
+    if uploaded_course:
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            tmp.write(uploaded_course.read())
+            tmp_path = tmp.name
+        try:
+            parsed_df, parse_warnings = parse_course_excel(tmp_path)
+            for w in parse_warnings:
+                st.warning(w)
+            if parsed_df.empty:
+                st.error("未能解析出任何對應資料，請確認工作表格式")
+            else:
+                st.info(f"解析完成，共 {len(parsed_df)} 筆對應。請確認後按「匯入」。")
+                # 讓使用者篩選只想匯入的科目
+                all_subjs = sorted(parsed_df["科目"].unique())
+                selected_subjs = st.multiselect(
+                    "選擇要匯入的科目（預設全選）",
+                    all_subjs, default=all_subjs, key="course_subjs"
+                )
+                preview_df = parsed_df[parsed_df["科目"].isin(selected_subjs)]
+                st.dataframe(preview_df, use_container_width=True, hide_index=True)
+
+                if st.button("✅ 確認匯入") and not preview_df.empty:
+                    new_map = to_teacher_map(preview_df)
+                    DATA_DIR.mkdir(exist_ok=True)
+                    with open(TEACHER_MAP_PATH, "w", encoding="utf-8") as f:
+                        json.dump(new_map, f, ensure_ascii=False, indent=2)
+                    st.success(f"✅ 匯入完成，共 {len(preview_df)} 筆對應")
+                    st.rerun()
+        finally:
+            os.unlink(tmp_path)
+
+# ── 批次上傳（手動整理格式）────────────────────────────────────
+with st.expander("📤 批次匯入教師對應表（上傳已整理 Excel）"):
     st.caption("Excel 需包含三欄：**科目**、**班級**、**教師姓名**，一列一筆對應。")
     uploaded_map = st.file_uploader("選擇 Excel 檔", type=["xlsx"], key="upload_teacher_map")
     if uploaded_map and st.button("匯入並覆蓋現有對應表"):
