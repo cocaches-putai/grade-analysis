@@ -75,51 +75,134 @@ def _parse_one_sheet(
     return results
 
 
+def _parse_subject_detail_sheet(
+    df: pd.DataFrame,
+    subject_name: str,
+    main_course_keywords: List[str],
+) -> List[Dict]:
+    """
+    解析「高中英文/國中英文/高中數學/國中數學」格式的科目專屬工作表。
+    找「教室」列，用該列確認真實班級，往上找最近的主課老師列。
+    主課老師列以 main_course_keywords 識別；若無，fallback 為「老師/教師」列。
+    """
+    results = []
+    classroom_rows = df.index[
+        df.iloc[:, 0].astype(str).str.strip().isin(["教室"])
+    ].tolist()
+
+    for cr in classroom_rows:
+        classroom_row = df.iloc[cr]
+
+        # 往上找主課老師列
+        main_teacher_row = None
+        for r in range(cr - 1, max(-1, cr - 7), -1):
+            cell0 = str(df.iloc[r, 0]).strip()
+            if any(kw in cell0 for kw in main_course_keywords):
+                main_teacher_row = r
+                break
+        if main_teacher_row is None:
+            # fallback：「老師」或「教師」列
+            for r in range(cr - 1, max(-1, cr - 7), -1):
+                cell0 = str(df.iloc[r, 0]).strip()
+                if cell0 in ("老師", "教師"):
+                    main_teacher_row = r
+                    break
+        if main_teacher_row is None:
+            continue
+
+        for col in range(1, len(classroom_row)):
+            cls_val = str(classroom_row.iloc[col]).strip()
+            # 需是真實班級（含一/二/三 + 甲/乙/丙…）
+            if not re.search(r"[一二三][年]?[甲乙丙丁戊己庚]", cls_val):
+                continue
+            teacher_cell = str(df.iloc[main_teacher_row, col]).strip()
+            if not teacher_cell or teacher_cell == "nan":
+                continue
+            # 去除括號內課時數及換行後的備注
+            teacher_name = re.sub(r"[\(（].*?[\)）]", "", teacher_cell)
+            teacher_name = re.sub(r"\n.*", "", teacher_name).strip()
+            if teacher_name:
+                results.append({
+                    "科目": subject_name, "班級": cls_val, "教師姓名": teacher_name
+                })
+    return results
+
+
 def parse_course_excel(file_path: str) -> Tuple[pd.DataFrame, List[str]]:
     """
     解析學校配課表 Excel 檔案，自動偵測支援的工作表。
 
+    解析優先順序：
+    - 「高中英文」「國中英文」「高中數學」「國中數學」分頁
+      使用教室列精確對應主課老師，結果會覆蓋「國英數」分頁的同科目資料。
+    - 「國英數」分頁：負責其他未有專屬分頁的科目（本土語等）。
+    - 「自社藝能」分頁：社會、自然、藝能各科。
+
     回傳:
         (result_df, warnings)
-        result_df: 欄位為 [科目, 班級, 教師姓名]，多師同班以「/」分隔
+        result_df: 欄位為 [科目, 班級, 教師姓名]
         warnings: 解析過程的提示訊息
     """
     warnings: List[str] = []
-    all_rows: List[Dict] = []
-
     xl = pd.ExcelFile(file_path)
-    sheet_names = xl.sheet_names
+    sheet_names = [s.strip() for s in xl.sheet_names]
 
-    # 偵測各工作表並以對應格式解析
-    for sheet in sheet_names:
-        sheet_stripped = sheet.strip()
-        df = xl.parse(sheet, header=None)
+    # ── 先解析有專屬分頁的科目（英文、數學）── ──────────────────
+    precise_rows: List[Dict] = []
+    precise_subjects: set = set()
 
-        if sheet_stripped == "國英數":
-            # 科目在 row1，教師在 row2
-            rows = _parse_one_sheet(df, teacher_row_idx=2, subject_row_idx=1)
-            all_rows.extend(rows)
+    _DETAIL_SHEETS = {
+        "高中英文": ("英語文", ["英文", "+閱", "閱讀"]),
+        "國中英文": ("英語文", ["部編", "讀本"]),
+        "高中數學": ("數學",  ["老師", "教師"]),  # fallback-only keywords
+        "國中數學": ("數學",  ["老師", "教師"]),
+    }
+    for raw_sheet in xl.sheet_names:
+        key = raw_sheet.strip()
+        if key in _DETAIL_SHEETS:
+            subj, keywords = _DETAIL_SHEETS[key]
+            df = xl.parse(raw_sheet, header=None)
+            rows = _parse_subject_detail_sheet(df, subj, keywords)
+            precise_rows.extend(rows)
+            precise_subjects.add(subj)
 
-        elif sheet_stripped in ("自社藝能", "自社藝能 "):
-            # 大類在 row1，細科在 row2，教師在 row3
-            rows = _parse_one_sheet(df, teacher_row_idx=3, subject_row_idx=2)
-            all_rows.extend(rows)
+    # ── 解析國英數（跳過已有精確分頁的科目）─────────────────────
+    broad_rows: List[Dict] = []
+    if "國英數" in sheet_names:
+        df = xl.parse("國英數", header=None)
+        for row in _parse_one_sheet(df, teacher_row_idx=2, subject_row_idx=1):
+            if row["科目"] not in precise_subjects:
+                broad_rows.append(row)
 
-        else:
-            warnings.append(f"工作表「{sheet}」格式未知，已略過（僅支援「國英數」和「自社藝能」）")
+    # ── 解析自社藝能 ───────────────────────────────────────────
+    yishe_rows: List[Dict] = []
+    for raw_sheet in xl.sheet_names:
+        if raw_sheet.strip() in ("自社藝能", "自社藝能 "):
+            df = xl.parse(raw_sheet, header=None)
+            yishe_rows = _parse_one_sheet(df, teacher_row_idx=3, subject_row_idx=2)
+            break
 
+    # ── 未知工作表提示 ─────────────────────────────────────────
+    known = set(_DETAIL_SHEETS.keys()) | {"國英數", "自社藝能", "自社藝能 "}
+    for raw_sheet in xl.sheet_names:
+        if raw_sheet.strip() not in known:
+            warnings.append(
+                f"工作表「{raw_sheet}」格式未知，已略過"
+                f"（支援：國英數、自社藝能、高中英文、國中英文、高中數學、國中數學）"
+            )
+
+    all_rows = precise_rows + broad_rows + yishe_rows
     if not all_rows:
         return pd.DataFrame(columns=["科目", "班級", "教師姓名"]), warnings
 
     result_df = pd.DataFrame(all_rows).drop_duplicates()
 
-    # 同一科目同一班若有多位老師，合併為「老師A/老師B」
+    # 同一科目同一班有多位老師時合併（正常情況下不應再發生，保留為保險）
     result_df = (
         result_df.groupby(["科目", "班級"])["教師姓名"]
         .apply(lambda x: "/".join(sorted(set(x))))
         .reset_index()
     )
-
     return result_df, warnings
 
 
