@@ -1,13 +1,17 @@
 # pages/06_行政報告.py
 import io
+import json
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 from auth import require_auth
 from src.stats import get_subject_cols, grade_rankings
 from src.teacher import teacher_summary, teacher_trend
 from src.storage import list_exams, load_exam as _load_exam
 from src.exporter import export_to_excel
 from ui.charts import bar_chart, line_chart
+
+_TEACHER_MAP_PATH = Path("data/teacher_map.json")
 
 st.set_page_config(page_title="行政報告", layout="wide")
 require_auth()
@@ -18,7 +22,13 @@ if "exam" not in st.session_state:
 
 exam = st.session_state["exam"]
 df = exam.scores_df
-teacher_map = exam.teacher_map
+
+# 優先使用磁碟上最新的教師對應表，確保匯入配課表後立即生效
+if _TEACHER_MAP_PATH.exists():
+    with open(_TEACHER_MAP_PATH, "r", encoding="utf-8") as f:
+        teacher_map = json.load(f)
+else:
+    teacher_map = exam.teacher_map
 subjects = get_subject_cols(df)
 
 st.title(f"📊 行政報告 — {exam.exam_name}")

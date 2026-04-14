@@ -1,10 +1,14 @@
 # pages/03_科目分析.py
+import json
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 from auth import require_auth
 from src.stats import get_subject_cols
 from src.comparison import cross_class_comparison, fairness_check, get_grades
 from ui.charts import bar_chart
+
+_TEACHER_MAP_PATH = Path("data/teacher_map.json")
 
 st.set_page_config(page_title="科目分析", layout="wide")
 require_auth()
@@ -16,7 +20,13 @@ if "exam" not in st.session_state:
 exam = st.session_state["exam"]
 df = exam.scores_df
 subjects = get_subject_cols(df)
-teacher_map = exam.teacher_map
+
+# 優先使用磁碟上最新的教師對應表，確保匯入配課表後立即生效
+if _TEACHER_MAP_PATH.exists():
+    with open(_TEACHER_MAP_PATH, "r", encoding="utf-8") as f:
+        teacher_map = json.load(f)
+else:
+    teacher_map = exam.teacher_map
 
 st.title(f"📚 科目分析 — {exam.exam_name}")
 
