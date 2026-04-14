@@ -48,8 +48,9 @@ with tab1:
         grade_rows.append(row)
 
     grade_summary = pd.DataFrame(grade_rows)
+    float_fmt = {c: "{:.2f}" for c in subjects}
     st.dataframe(
-        grade_summary.style.highlight_between(
+        grade_summary.style.format(float_fmt, na_rep="—").highlight_between(
             subset=subjects, left=0, right=59, color="#fecaca"
         ),
         use_container_width=True,
