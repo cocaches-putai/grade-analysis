@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 from auth import require_auth
-from src.stats import get_subject_cols, grade_rankings
+from src.stats import get_subject_cols, grade_rankings, sort_grades
 from src.teacher import teacher_summary, teacher_trend
 from src.storage import list_exams, load_exam as _load_exam
 from src.exporter import export_to_excel
@@ -40,7 +40,7 @@ with tab1:
     st.subheader("各年級各科平均分")
 
     grade_rows = []
-    for grade in sorted(df["年級"].unique()):
+    for grade in sort_grades(df["年級"].unique()):
         grade_df = df[df["年級"] == grade]
         row = {"年級": grade, "班級數": grade_df["班級"].nunique(), "學生數": len(grade_df)}
         for subj in subjects:
@@ -61,7 +61,7 @@ with tab1:
 
     # 年級內學生排名（可選）
     st.subheader("年級排名查詢")
-    grades = sorted(df["年級"].unique().tolist())
+    grades = sort_grades(df["年級"].unique().tolist())
     selected_grade = st.selectbox("選擇年級", grades)
     selected_subject_rank = st.selectbox("排名科目", subjects, key="grade_rank_subject")
 
@@ -81,7 +81,7 @@ with tab1:
     st.subheader("匯出全校成績報告")
     if st.button("產生並下載完整報告 Excel"):
         sheets = {"總覽": grade_summary}
-        for grade in sorted(df["年級"].unique()):
+        for grade in sort_grades(df["年級"].unique()):
             sheets[grade] = df[df["年級"] == grade].reset_index(drop=True)
         export_to_excel(sheets, "/tmp/_full_report.xlsx")
         with open("/tmp/_full_report.xlsx", "rb") as f:

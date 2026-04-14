@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from auth import require_auth
 from src.alerts import fail_rate_alerts, difficulty_alerts
-from src.stats import detect_anomalies, get_subject_cols, class_stats
+from src.stats import detect_anomalies, get_subject_cols, class_stats, sort_grades
 from ui.charts import fail_rate_color
 
 st.set_page_config(page_title="總覽", layout="wide")
@@ -57,7 +57,7 @@ st.divider()
 st.subheader("各年級各科平均分")
 
 grade_rows = []
-for grade in sorted(df["年級"].unique()):
+for grade in sort_grades(df["年級"].unique()):
     grade_df = df[df["年級"] == grade]
     row = {"年級": grade, "班級數": grade_df["班級"].nunique(), "學生數": len(grade_df)}
     for subj in subjects:

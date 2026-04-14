@@ -1,7 +1,7 @@
 # src/comparison.py
 from typing import Dict, List, Optional, Set
 import pandas as pd
-from src.stats import class_stats
+from src.stats import class_stats, sort_grades
 
 _META_COLS = ["姓名", "年級", "班級"]
 
@@ -33,7 +33,7 @@ def cross_class_comparison(
 
 def get_grades(df: pd.DataFrame) -> List[str]:
     """回傳資料中所有年段，排序後加上『全部年段』選項"""
-    grades = sorted(df["年級"].unique().tolist())
+    grades = sort_grades(df["年級"].unique().tolist())
     return ["全部年段"] + grades
 
 

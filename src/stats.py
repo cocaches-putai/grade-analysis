@@ -9,6 +9,13 @@ from config import (
 
 _META_COLS = ["姓名", "年級", "班級"]
 
+_GRADE_ORDER = ["高一", "高二", "高三", "國一", "國二", "國三"]
+
+
+def sort_grades(grades) -> list:
+    """依高一→高二→高三→國一→國二→國三排序年段"""
+    return sorted(grades, key=lambda g: _GRADE_ORDER.index(g) if g in _GRADE_ORDER else 99)
+
 
 def get_subject_cols(df: pd.DataFrame) -> List[str]:
     """回傳成績 DataFrame 中的科目欄位列表"""
