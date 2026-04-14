@@ -9,14 +9,17 @@ _META_COLS = ["姓名", "年級", "班級"]
 def cross_class_comparison(
     df: pd.DataFrame,
     subject: str,
-    teacher_map: Dict[str, Dict[str, str]] = None
+    teacher_map: Dict[str, Dict[str, str]] = None,
+    grade: str = None,
 ) -> pd.DataFrame:
     """
     回傳某科目所有班級的統計摘要 DataFrame，含任課教師欄位。
     teacher_map 格式: {"科目": {"班級": "教師姓名"}}
+    grade: 若指定（如 "高一"），只比較該年段的班級
     """
+    target_df = df[df["年級"] == grade] if grade else df
     rows = []
-    for grade_class in df["班級"].unique():
+    for grade_class in target_df["班級"].unique():
         stats = class_stats(df, grade_class, subject)
         teacher = ""
         if teacher_map and subject in teacher_map:
@@ -29,17 +32,24 @@ def cross_class_comparison(
     return result.sort_values("班級").reset_index(drop=True)
 
 
+def get_grades(df: pd.DataFrame) -> List[str]:
+    """回傳資料中所有年段，排序後加上『全部年段』選項"""
+    grades = sorted(df["年級"].unique().tolist())
+    return ["全部年段"] + grades
+
+
 def fairness_check(
     df: pd.DataFrame,
     subject: str,
     teacher_map: Dict[str, Dict[str, str]],
-    gap_threshold: float = 15.0
+    gap_threshold: float = 15.0,
+    grade: str = None,
 ) -> List[str]:
     """
     偵測同科不同老師班級間的成績差距。
     只比較「不同老師」的班級。回傳警示訊息列表。
     """
-    comparison = cross_class_comparison(df, subject, teacher_map)
+    comparison = cross_class_comparison(df, subject, teacher_map, grade=grade)
     if len(comparison) < 2:
         return []
 

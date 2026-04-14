@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from auth import require_auth
 from src.stats import get_subject_cols
-from src.comparison import cross_class_comparison, fairness_check
+from src.comparison import cross_class_comparison, fairness_check, get_grades
 from ui.charts import bar_chart
 
 st.set_page_config(page_title="科目分析", layout="wide")
@@ -20,13 +20,21 @@ teacher_map = exam.teacher_map
 
 st.title(f"📚 科目分析 — {exam.exam_name}")
 
-selected_subject = st.selectbox("選擇科目", subjects)
+col1, col2 = st.columns(2)
+with col1:
+    selected_subject = st.selectbox("選擇科目", subjects)
+with col2:
+    all_grades = get_grades(df)
+    selected_grade = st.selectbox("年段篩選", all_grades)
+
+grade_filter = None if selected_grade == "全部年段" else selected_grade
 
 st.divider()
 
 # ── 跨班比較 ──────────────────────────────────────────────────
-st.subheader(f"{selected_subject} 跨班成績比較")
-comparison = cross_class_comparison(df, selected_subject, teacher_map)
+grade_label = selected_grade if selected_grade != "全部年段" else "全年段"
+st.subheader(f"{selected_subject} 跨班成績比較（{grade_label}）")
+comparison = cross_class_comparison(df, selected_subject, teacher_map, grade=grade_filter)
 fig = bar_chart(comparison, x_col="班級", y_col="平均",
                 title=f"{selected_subject} 各班平均分", threshold_line=60.0)
 st.plotly_chart(fig, use_container_width=True)
@@ -45,7 +53,7 @@ st.subheader("出題公平性檢查")
 if not teacher_map:
     st.info("尚未設定教師對應表，請先在主頁設定後再使用此功能")
 else:
-    alerts = fairness_check(df, selected_subject, teacher_map, gap_threshold=15.0)
+    alerts = fairness_check(df, selected_subject, teacher_map, gap_threshold=15.0, grade=grade_filter)
     if alerts:
         for a in alerts:
             st.warning(a)
