@@ -86,14 +86,16 @@ else:
         for _, row in flagged.iterrows():
             teacher_note = f"（{row['任課教師']}）" if row["任課教師"] else ""
             st.warning(
-                f"【{row['班級']}】{teacher_note} {selected_subject} 平均 {row[f'{selected_subject}平均']} 分，"
-                f"低於該班全科平均 {row['全科平均']} 分，偏差 {abs(row['偏差']):.2f} 分"
+                f"【{row['班級']}】{teacher_note} {selected_subject} 平均 {row[f'{selected_subject}平均']:.2f} 分，"
+                f"低於該班全科平均 {row['全科平均']:.2f} 分，偏差 {abs(row['偏差']):.2f} 分"
             )
     else:
         st.success(f"各班 {selected_subject} 成績均在自身全科平均水準內 ✅")
 
+    display_below = below_df[[c for c in below_df.columns if c != "⚠️"]]
+    float_fmt = {c: "{:.2f}" for c in display_below.columns if display_below[c].dtype == "float64"}
     st.dataframe(
-        below_df[[c for c in below_df.columns if c != "⚠️"]].style.apply(
+        display_below.style.format(float_fmt).apply(
             lambda row: ["background-color: #fef9c3" if row["偏差"] <= -deviation_threshold
                          else "" for _ in row],
             axis=1
@@ -144,8 +146,9 @@ else:
         if len(flagged_teachers) > 0:
             st.warning(f"以下老師各班差距偏大（≥10分）：{', '.join(flagged_teachers)}")
 
+        display_cons = consistency_df[[c for c in consistency_df.columns if c != "⚠️"]]
         st.dataframe(
-            consistency_df[[c for c in consistency_df.columns if c != "⚠️"]].style.apply(
+            display_cons.style.format({"平均": "{:.2f}", "班間最大差距": "{:.2f}"}).apply(
                 lambda row: ["background-color: #fef9c3" if row["班間最大差距"] >= 10
                              else "" for _ in row],
                 axis=1
