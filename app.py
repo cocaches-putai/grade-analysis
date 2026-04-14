@@ -16,6 +16,7 @@ from src.storage import save_exam, load_exam, list_exams, delete_exam
 
 DATA_DIR = Path("data")
 TEACHER_MAP_PATH = DATA_DIR / "teacher_map.json"
+ABILITY_CLASSES_PATH = DATA_DIR / "ability_classes.json"
 
 st.set_page_config(page_title="普台成績分析", page_icon="📊", layout="wide")
 require_auth()
@@ -232,6 +233,43 @@ with st.expander("➕ 單筆新增 / 修改"):
             json.dump(teacher_map, f, ensure_ascii=False, indent=2)
         st.success(f"✅ 已儲存：{t_subject} / {t_class} → {t_name}")
         st.rerun()
+
+st.divider()
+
+# ── 資優班設定 ─────────────────────────────────────────────────
+st.header("資優班設定")
+st.caption("設定哪些班為能力分班（資優班），公平性檢查時將分層比較，不與普通班混合。")
+
+ability_classes: list = []
+if ABILITY_CLASSES_PATH.exists():
+    with open(ABILITY_CLASSES_PATH, "r", encoding="utf-8") as f:
+        ability_classes = json.load(f)
+
+# 從目前載入的考試取得班級清單（若有）
+all_classes: list = []
+if "exam" in st.session_state:
+    all_classes = sorted(st.session_state["exam"].scores_df["班級"].unique().tolist())
+
+if all_classes:
+    selected_ability = st.multiselect(
+        "選擇資優班（可多選）",
+        options=all_classes,
+        default=[c for c in ability_classes if c in all_classes],
+        help="例如：高一乙、高一庚、高二乙、高二庚…",
+    )
+    if st.button("儲存資優班設定"):
+        DATA_DIR.mkdir(exist_ok=True)
+        with open(ABILITY_CLASSES_PATH, "w", encoding="utf-8") as f:
+            json.dump(selected_ability, f, ensure_ascii=False)
+        st.success(f"✅ 已儲存，共 {len(selected_ability)} 個資優班：{', '.join(selected_ability)}")
+        st.rerun()
+    if ability_classes:
+        st.info(f"目前設定：{', '.join(ability_classes)}")
+else:
+    if ability_classes:
+        st.info(f"目前設定：{', '.join(ability_classes)}（請先載入考試資料以編輯）")
+    else:
+        st.info("請先載入考試資料，再設定資優班。")
 
 st.divider()
 if st.button("登出"):

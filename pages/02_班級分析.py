@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 from auth import require_auth
 from src.stats import get_subject_cols, class_stats, subject_distribution, student_rankings
+from src.comparison import class_subject_deviation
 from ui.charts import bar_chart, distribution_chart
 
 st.set_page_config(page_title="班級分析", layout="wide")
@@ -51,6 +52,21 @@ st.dataframe(
     rankings[display_cols].sort_values(rank_col),
     use_container_width=True, hide_index=True
 )
+
+# ── 同班科際比較 ──────────────────────────────────────────────
+st.subheader(f"{selected_class} 各科與全科平均比較")
+st.caption("偏差 = 該科平均 − 全科平均，黃底標示偏低 8 分以上的科目。")
+dev_df = class_subject_deviation(df, selected_class, subjects)
+if not dev_df.empty:
+    st.dataframe(
+        dev_df.style.apply(
+            lambda row: ["background-color: #fef9c3" if row["偏差"] <= -8 else "" for _ in row],
+            axis=1
+        ),
+        use_container_width=True, hide_index=True,
+    )
+
+st.divider()
 
 # ── 各科統計 ──────────────────────────────────────────────────
 st.subheader(f"{selected_class} 各科統計")
