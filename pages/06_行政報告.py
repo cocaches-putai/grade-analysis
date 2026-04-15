@@ -39,24 +39,24 @@ tab1, tab2 = st.tabs(["年級摘要", "教師教學成果"])
 with tab1:
     st.subheader("各年級各科平均分")
 
-    grade_rows = []
+    _fmt = lambda v: f"{v:.2f}" if pd.notna(v) else "—"
     for grade in sort_grades(df["年級"].unique()):
         grade_df = df[df["年級"] == grade]
-        row = {"年級": grade, "班級數": grade_df["班級"].nunique(), "學生數": len(grade_df)}
-        for subj in subjects:
-            row[subj] = round(grade_df[subj].mean(), 2)
-        grade_rows.append(row)
-
-    grade_summary = pd.DataFrame(grade_rows)
-    _fmt = lambda v: f"{v:.2f}" if pd.notna(v) else "—"
-    float_fmt = {c: _fmt for c in subjects}
-    st.dataframe(
-        grade_summary.style.format(float_fmt).highlight_between(
-            subset=subjects, left=0, right=59, color="#fecaca"
-        ),
-        use_container_width=True,
-        hide_index=True
-    )
+        # 只顯示該年段有實際成績的科目
+        grade_subjs = [s for s in subjects if grade_df[s].notna().any()]
+        row = {"班級數": grade_df["班級"].nunique(), "學生數": len(grade_df)}
+        for subj in grade_subjs:
+            row[subj] = round(float(grade_df[subj].mean()), 2)
+        grade_summary = pd.DataFrame([row])
+        float_fmt = {c: _fmt for c in grade_subjs}
+        st.markdown(f"**{grade}**")
+        st.dataframe(
+            grade_summary.style.format(float_fmt).highlight_between(
+                subset=grade_subjs, left=0, right=59, color="#fecaca"
+            ),
+            use_container_width=True,
+            hide_index=True
+        )
 
     st.divider()
 
