@@ -107,9 +107,14 @@ with tab2:
         else:
             summary_display = summary.copy()
             summary_display["不及格比例"] = summary_display["不及格比例"].apply(
-                lambda v: f"{v:.0%}" if v is not None else "—"
+                lambda v: f"{v:.0%}" if pd.notna(v) else "—"
             )
-            st.dataframe(summary_display, use_container_width=True, hide_index=True)
+            num_fmt = {c: "{:.2f}" for c in ["平均", "最高分", "最低分"]}
+            st.dataframe(
+                summary_display.style.format(num_fmt, na_rep="—"),
+                use_container_width=True,
+                hide_index=True
+            )
 
             st.divider()
 

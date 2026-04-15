@@ -30,7 +30,9 @@ def teacher_summary(
                 "最高分": stats["最高分"],
                 "最低分": stats["最低分"],
             })
-    return pd.DataFrame(rows).sort_values(["教師姓名", "科目"]).reset_index(drop=True)
+    result = pd.DataFrame(rows).sort_values(["教師姓名", "科目"]).reset_index(drop=True)
+    # 過濾掉本次考試無學生資料的班級（避免顯示 None）
+    return result[result["人數"] > 0].reset_index(drop=True)
 
 
 def teacher_trend(
