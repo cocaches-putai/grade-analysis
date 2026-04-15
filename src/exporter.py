@@ -221,7 +221,12 @@ _ENG_MATH_KW = ("英語", "英文", "數學", "英聽")
 def _write_eng_math_sheet(wb, df: pd.DataFrame,
                           subjects: List[str], teacher_map: dict,
                           exam_name: str, all_classes: List[str],
-                          school_name: str):
+                          school_name: str, subject_groups: Optional[dict] = None):
+    """
+    subject_groups 格式（來自 grouping_parser.parse_grouping_excel）：
+    {"數學": {"高一": [{"label": ..., "teacher": ..., "students": [...]}, ...], ...}, ...}
+    有分組資料則依分組顯示；否則 fallback 為班別。
+    """
     # 只保留主要英文/數學（排除純選修）
     _ELECTIVE_KW = ("選修", "進階", "閱讀", "作文", "空間")
     eng_math = [
@@ -237,39 +242,101 @@ def _write_eng_math_sheet(wb, df: pd.DataFrame,
     total_cols = 2 + len(eng_math)
 
     ws.row_dimensions[1].height = 24
-    _title_row(ws, 1, f"{school_name}　{exam_name}　英數班級平均成績", total_cols)
+    _title_row(ws, 1, f"{school_name}　{exam_name}　英數分組平均成績", total_cols)
 
-    ws.column_dimensions["A"].width = 12
+    ws.column_dimensions["A"].width = 14
     ws.column_dimensions["B"].width = 12
-    _cell(ws, 2, 1, "班級", bold=True, fill=_HEADER_FILL)
+    _cell(ws, 2, 1, "分組/班級", bold=True, fill=_HEADER_FILL)
     _cell(ws, 2, 2, "科目", bold=True, fill=_HEADER_FILL)
     for i, subj in enumerate(eng_math):
         ws.column_dimensions[get_column_letter(3 + i)].width = 10
         _cell(ws, 2, 3 + i, subj, bold=True, fill=_HEADER_FILL)
 
     row = 3
-    for cls in all_classes:
-        # 只顯示有英數成績的班
-        has_data = any(
-            len(df[df["班級"] == cls][s].dropna()) > 0 for s in eng_math
+    grades = sort_grades(df["年級"].unique().tolist())
+
+    for grade in grades:
+        grade_classes = _sort_classes(
+            df[df["年級"] == grade]["班級"].unique().tolist()
         )
-        if not has_data:
-            continue
 
-        _cell(ws, row, 1, cls, bold=True, fill=_TEACHER_FILL)
-        _cell(ws, row, 2, "任課老師", fill=_TEACHER_FILL)
-        for i, subj in enumerate(eng_math):
-            teacher = teacher_map.get(subj, {}).get(cls, "")
-            _cell(ws, row, 3 + i, teacher or None, fill=_TEACHER_FILL)
-        row += 1
+        # 決定使用分組模式還是班別 fallback
+        # 分組模式：該年段有任一科目有分組資料
+        use_groups = False
+        grade_groups_by_subj: dict = {}
+        if subject_groups:
+            for subj in eng_math:
+                if subj in subject_groups and grade in subject_groups[subj]:
+                    grade_groups_by_subj[subj] = subject_groups[subj][grade]
+                    use_groups = True
 
-        _cell(ws, row, 1, "", fill=_AVG_FILL)
-        _cell(ws, row, 2, exam_name, fill=_AVG_FILL)
-        for i, subj in enumerate(eng_math):
-            subset = df[df["班級"] == cls][subj].dropna()
-            val = round(float(subset.mean()), 2) if len(subset) > 0 else None
-            _cell(ws, row, 3 + i, val, fill=_AVG_FILL, num_fmt="0.00")
-        row += 1
+        if use_groups:
+            # 以「有分組的科目」的組數為基準（取最多組的那個科目）
+            ref_subj = max(grade_groups_by_subj, key=lambda s: len(grade_groups_by_subj[s]))
+            ref_groups = grade_groups_by_subj[ref_subj]
+
+            for grp in ref_groups:
+                student_set = set(grp["students"])
+                label = grp["label"]
+
+                # 老師：優先用分組資料，不足的科目用 teacher_map
+                _cell(ws, row, 1, label, bold=True, fill=_TEACHER_FILL)
+                _cell(ws, row, 2, "任課老師", fill=_TEACHER_FILL)
+                for i, subj in enumerate(eng_math):
+                    # 從分組資料找這個 label 的老師
+                    teacher = ""
+                    if subj in grade_groups_by_subj:
+                        matched = next(
+                            (g for g in grade_groups_by_subj[subj]
+                             if g["label"] == label or g["code"] == grp["code"]),
+                            None
+                        )
+                        if matched:
+                            teacher = matched["teacher"]
+                    _cell(ws, row, 3 + i, teacher or None, fill=_TEACHER_FILL)
+                row += 1
+
+                # 成績：從 scores_df 找到分組學生的成績
+                _cell(ws, row, 1, "", fill=_AVG_FILL)
+                _cell(ws, row, 2, exam_name, fill=_AVG_FILL)
+                for i, subj in enumerate(eng_math):
+                    # 如有此科的分組，用分組學生清單；否則用整個年段
+                    if subj in grade_groups_by_subj:
+                        s_set = set(next(
+                            (g["students"] for g in grade_groups_by_subj[subj]
+                             if g["label"] == label or g["code"] == grp["code"]),
+                            grp["students"]
+                        ))
+                    else:
+                        s_set = student_set
+                    subset = df[df["姓名"].isin(s_set)][subj].dropna()
+                    val = round(float(subset.mean()), 2) if len(subset) > 0 else None
+                    _cell(ws, row, 3 + i, val, fill=_AVG_FILL, num_fmt="0.00")
+                row += 1
+
+        else:
+            # fallback：依班別顯示
+            for cls in grade_classes:
+                has_data = any(
+                    len(df[df["班級"] == cls][s].dropna()) > 0 for s in eng_math
+                )
+                if not has_data:
+                    continue
+
+                _cell(ws, row, 1, cls, bold=True, fill=_TEACHER_FILL)
+                _cell(ws, row, 2, "任課老師", fill=_TEACHER_FILL)
+                for i, subj in enumerate(eng_math):
+                    teacher = teacher_map.get(subj, {}).get(cls, "")
+                    _cell(ws, row, 3 + i, teacher or None, fill=_TEACHER_FILL)
+                row += 1
+
+                _cell(ws, row, 1, "", fill=_AVG_FILL)
+                _cell(ws, row, 2, exam_name, fill=_AVG_FILL)
+                for i, subj in enumerate(eng_math):
+                    subset = df[df["班級"] == cls][subj].dropna()
+                    val = round(float(subset.mean()), 2) if len(subset) > 0 else None
+                    _cell(ws, row, 3 + i, val, fill=_AVG_FILL, num_fmt="0.00")
+                row += 1
 
 
 # ── 前三名 ────────────────────────────────────────────────────────
@@ -397,6 +464,7 @@ def export_analysis_excel(
     exam_name: str,
     output_path: str,
     school_name: str = "普台高級中學",
+    subject_groups: Optional[dict] = None,
 ) -> None:
     """
     產生完整成績分析 Excel，格式對應學校現有手動分析檔。
@@ -430,7 +498,7 @@ def export_analysis_excel(
     _write_summary_sheet(wb, df, subjects, teacher_map, exam_name,
                          all_classes, school_name)
     _write_eng_math_sheet(wb, df, subjects, teacher_map, exam_name,
-                          all_classes, school_name)
+                          all_classes, school_name, subject_groups=subject_groups)
     _write_top3_sheet(wb, df, subjects, all_classes, school_name, exam_name)
     _write_ranking_sheet(wb, df, subjects, grades, school_name, exam_name)
 

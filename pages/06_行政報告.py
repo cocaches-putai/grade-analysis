@@ -157,6 +157,12 @@ st.divider()
 st.subheader("一鍵匯出完整成績分析報告")
 st.caption("格式與同仁現有手動製作的分析 Excel 相同，包含：各年級各科分布、各科平均總表、各班前三名。")
 
+_SUBJECT_GROUPS_PATH = Path("data/subject_groups.json")
+subject_groups = None
+if _SUBJECT_GROUPS_PATH.exists():
+    with open(_SUBJECT_GROUPS_PATH, "r", encoding="utf-8") as f:
+        subject_groups = json.load(f)
+
 if st.button("產生完整分析報告", type="primary"):
     with st.spinner("產生中…"):
         export_analysis_excel(
@@ -164,6 +170,7 @@ if st.button("產生完整分析報告", type="primary"):
             teacher_map=teacher_map,
             exam_name=exam.exam_name,
             output_path="/tmp/_analysis_report.xlsx",
+            subject_groups=subject_groups,
         )
     with open("/tmp/_analysis_report.xlsx", "rb") as f:
         data = f.read()

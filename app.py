@@ -11,12 +11,14 @@ from src.loader import (
     is_school_format, preprocess_school_excel,
 )
 from src.course_parser import parse_course_excel, to_teacher_map
+from src.grouping_parser import parse_grouping_excel
 from src.models import ExamRecord
 from src.storage import save_exam, load_exam, list_exams, delete_exam
 
 DATA_DIR = Path("data")
 TEACHER_MAP_PATH = DATA_DIR / "teacher_map.json"
 ABILITY_CLASSES_PATH = DATA_DIR / "ability_classes.json"
+SUBJECT_GROUPS_PATH = DATA_DIR / "subject_groups.json"
 
 st.set_page_config(page_title="普台成績分析", page_icon="📊", layout="wide")
 require_auth()
@@ -233,6 +235,54 @@ with st.expander("➕ 單筆新增 / 修改"):
             json.dump(teacher_map, f, ensure_ascii=False, indent=2)
         st.success(f"✅ 已儲存：{t_subject} / {t_class} → {t_name}")
         st.rerun()
+
+st.divider()
+
+# ── 英數分組設定 ───────────────────────────────────────────────────
+st.header("英數分組設定")
+st.caption("上傳教務處提供的「英數分組.xlsx」，匯出報告時英數平均總表將依分組顯示（未上傳則以班別顯示）。")
+
+if SUBJECT_GROUPS_PATH.exists():
+    with open(SUBJECT_GROUPS_PATH, "r", encoding="utf-8") as f:
+        existing_groups = json.load(f)
+    summary_parts = []
+    for subj, grades in existing_groups.items():
+        for grade, groups in grades.items():
+            summary_parts.append(f"{grade}{subj}（{len(groups)} 組）")
+    st.success(f"已上傳：{', '.join(summary_parts)}")
+else:
+    st.info("尚未上傳，匯出時英數欄位將以班別顯示。")
+
+with st.expander("📤 上傳英數分組 Excel"):
+    uploaded_groups = st.file_uploader(
+        "選擇分組 Excel（工作表名稱如：高一數學、高二英文）",
+        type=["xlsx"], key="upload_groups"
+    )
+    if uploaded_groups:
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            tmp.write(uploaded_groups.read())
+            tmp_path = tmp.name
+        try:
+            parsed_groups = parse_grouping_excel(tmp_path)
+            if not parsed_groups:
+                st.error("未能解析出任何分組資料，請確認工作表名稱格式（如：高一數學、高二英文）")
+            else:
+                preview_parts = []
+                for subj, grades in parsed_groups.items():
+                    for grade, groups in grades.items():
+                        preview_parts.append(
+                            f"{grade}{subj}：{', '.join(g['label'] for g in groups)}"
+                        )
+                st.info("\n".join(preview_parts))
+                if st.button("✅ 確認儲存分組設定"):
+                    DATA_DIR.mkdir(exist_ok=True)
+                    with open(SUBJECT_GROUPS_PATH, "w", encoding="utf-8") as f:
+                        json.dump(parsed_groups, f, ensure_ascii=False, indent=2)
+                    st.success("✅ 分組設定已儲存")
+                    st.rerun()
+        finally:
+            os.unlink(tmp_path)
 
 st.divider()
 
