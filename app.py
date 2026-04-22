@@ -368,21 +368,33 @@ if all_classes:
     )
 
     if all_subjects:
+        # 自動偵測理科關鍵字（供社會組排除用）
+        _SCIENCE_KEYWORDS = ["生物", "物理", "化學", "地科", "自然"]
+        _SOCIAL_KEYWORDS = ["歷史", "地理", "公民", "社會"]
+        auto_science = [s for s in all_subjects if any(k in s for k in _SCIENCE_KEYWORDS)]
+        auto_social = [s for s in all_subjects if any(k in s for k in _SOCIAL_KEYWORDS)]
+
+        # 若已有儲存設定就用儲存的；否則用自動偵測結果當預設
+        saved_social_excl = class_config.get("social_excluded_subjects")
+        saved_science_excl = class_config.get("science_excluded_subjects")
+        default_social_excl = [s for s in saved_social_excl if s in all_subjects] if saved_social_excl is not None else auto_science
+        default_science_excl = [s for s in saved_science_excl if s in all_subjects] if saved_science_excl is not None else auto_social
+
         st.markdown("**社會組不列入警示的科目**")
-        st.caption("通常為生物、物理、化學、地科及其選修科目。")
+        st.caption("已自動偵測理科科目作為預設，可自行增減。")
         selected_social_excl = st.multiselect(
-            "選擇排除科目（社會組）",
+            "排除科目（社會組）",
             options=all_subjects,
-            default=[s for s in class_config.get("social_excluded_subjects", []) if s in all_subjects],
+            default=default_social_excl,
             key="social_excluded_subjects",
         )
 
         st.markdown("**自然組不列入警示的科目**")
-        st.caption("自然組由社會組反向推算（高二/高三）。通常排除歷史、地理、公民，國文照樣列入。")
+        st.caption("已自動偵測史地公科目作為預設（國文不在其中），可自行增減。")
         selected_science_excl = st.multiselect(
-            "選擇排除科目（自然組）",
+            "排除科目（自然組）",
             options=all_subjects,
-            default=[s for s in class_config.get("science_excluded_subjects", []) if s in all_subjects],
+            default=default_science_excl,
             key="science_excluded_subjects",
         )
     else:
