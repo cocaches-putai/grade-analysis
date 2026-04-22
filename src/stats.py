@@ -88,9 +88,10 @@ def detect_anomalies(df: pd.DataFrame, prev_df: pd.DataFrame = None) -> pd.DataF
         threshold = class_means - ALERT_ANOMALY_STD_MULTIPLIER * class_stds
         flagged = df[df[subj] < threshold].copy()
         if len(flagged) > 0:
-            flagged = flagged.copy()
+            flagged["異常科目"] = subj
+            flagged["分數"] = flagged[subj]
             flagged["異常原因"] = f"{subj}分數異常偏低（低於班級平均 2 個標準差）"
-            anomaly_rows.append(flagged[["姓名", "年級", "班級", subj, "異常原因"]])
+            anomaly_rows.append(flagged[["姓名", "年級", "班級", "異常科目", "分數", "異常原因"]])
 
     if prev_df is not None:
         merged = df.merge(prev_df, on=["姓名", "年級", "班級"], suffixes=("_本次", "_上次"))
@@ -101,16 +102,20 @@ def detect_anomalies(df: pd.DataFrame, prev_df: pd.DataFrame = None) -> pd.DataF
                 diff = merged[col_prev] - merged[col_curr]
                 flagged = merged[diff >= 30].copy()
                 if len(flagged) > 0:
+                    flagged["異常科目"] = subj
+                    flagged["分數"] = flagged[col_curr]
                     flagged["異常原因"] = f"{subj}與上次相比退步超過 30 分"
-                    anomaly_rows.append(flagged[["姓名", "年級", "班級", "異常原因"]])
+                    anomaly_rows.append(flagged[["姓名", "年級", "班級", "異常科目", "分數", "異常原因"]])
 
     # 第二條件：所有科目皆不及格
     fail_all_mask = (df[subjects] < PASSING_SCORE).all(axis=1)
     flagged_all = df[fail_all_mask].copy()
     if len(flagged_all) > 0:
+        flagged_all["異常科目"] = "—"
+        flagged_all["分數"] = None
         flagged_all["異常原因"] = "全科不及格"
-        anomaly_rows.append(flagged_all[["姓名", "年級", "班級", "異常原因"]])
+        anomaly_rows.append(flagged_all[["姓名", "年級", "班級", "異常科目", "分數", "異常原因"]])
 
     if not anomaly_rows:
-        return pd.DataFrame(columns=["姓名", "年級", "班級", "異常原因"])
+        return pd.DataFrame(columns=["姓名", "年級", "班級", "異常科目", "分數", "異常原因"])
     return pd.concat(anomaly_rows, ignore_index=True).drop_duplicates(subset=["姓名", "異常原因"])
