@@ -57,7 +57,7 @@ with tab1:
             return ""
 
         st.dataframe(
-            display_df.style.applymap(_highlight_count, subset=["不及格科目數"]),
+            display_df.style.map(_highlight_count, subset=["不及格科目數"]),
             use_container_width=True, hide_index=True,
         )
 
