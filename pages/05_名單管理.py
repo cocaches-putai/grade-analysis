@@ -32,8 +32,26 @@ with tab1:
         st.info(f"共 {len(tutoring)} 位學生列入輔導名單")
         classes = ["全部"] + sorted(tutoring["班級"].unique().tolist())
         selected_class = st.selectbox("篩選班級", classes, key="tutoring_class")
-        display_df = tutoring if selected_class == "全部" else tutoring[tutoring["班級"] == selected_class]
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        raw_df = tutoring if selected_class == "全部" else tutoring[tutoring["班級"] == selected_class]
+
+        # 整理顯示用表格：把各科欄位合成「不及格科目」一欄
+        from config import PASSING_SCORE
+        subj_cols = [c for c in tutoring.columns if c not in ["姓名", "年級", "班級", "不及格科目數"]]
+        def _fail_summary(row):
+            parts = []
+            for s in subj_cols:
+                v = row.get(s)
+                if pd.notna(v) and v < PASSING_SCORE:
+                    parts.append(f"{s}（{v:.1f}）")
+            return "、".join(parts) if parts else "—"
+        display_df = raw_df[["姓名", "年級", "班級", "不及格科目數"]].copy()
+        display_df["不及格科目（分數）"] = raw_df.apply(_fail_summary, axis=1)
+        st.dataframe(
+            display_df.style.background_gradient(
+                subset=["不及格科目數"], cmap="OrRd", vmin=0, vmax=len(subj_cols)
+            ),
+            use_container_width=True, hide_index=True,
+        )
 
         buf = io.BytesIO()
         export_to_excel({"輔導名單": tutoring}, "/tmp/_tutoring_tmp.xlsx")
