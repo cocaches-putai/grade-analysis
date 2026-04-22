@@ -11,29 +11,50 @@ from src.stats import get_subject_cols, class_stats
 _META_COLS = ["姓名", "年級", "班級"]
 
 
+def _infer_science_classes(
+    df: pd.DataFrame,
+    social_classes: List[str],
+) -> List[str]:
+    """自然組 = 高二/高三班級扣掉社會組"""
+    upper_grades = {"高二", "高三"}
+    all_upper = [
+        c for c in df["班級"].unique()
+        if any(c.startswith(g) for g in upper_grades)
+    ]
+    return [c for c in all_upper if c not in social_classes]
+
+
 def fail_rate_alerts(
     df: pd.DataFrame,
     threshold: float = ALERT_FAIL_RATE_THRESHOLD,
     baseline_classes: List[str] = [],
     social_classes: List[str] = [],
     social_excluded_subjects: List[str] = [],
+    science_excluded_subjects: List[str] = [],
 ) -> Dict[str, List[Dict]]:
     """
     回傳警示清單，分為兩組：
-    - "一般": 排除基準班與社會組非主修科目
-    - "基準班": 甲/己等基準班的獨立警示
+    - "一般": 排除基準班、社會組理科、自然組史地公
+    - "基準班": 甲/己等基準班的獨立警示（門檻 70%）
     """
     main_alerts = []
     baseline_alerts = []
     subjects = get_subject_cols(df)
 
+    # 自然組由社會組反向推論
+    science_classes = _infer_science_classes(df, social_classes) if social_classes else []
+
     for grade_class in df["班級"].unique():
         is_baseline = grade_class in baseline_classes
         is_social = grade_class in social_classes
+        is_science = grade_class in science_classes
 
         for subj in subjects:
-            # 社會組 + 非主修科目 → 直接略過
+            # 社會組 + 理科 → 略過
             if is_social and subj in social_excluded_subjects:
+                continue
+            # 自然組 + 史地公 → 略過
+            if is_science and subj in science_excluded_subjects:
                 continue
 
             stats = class_stats(df, grade_class, subj)
@@ -52,7 +73,6 @@ def fail_rate_alerts(
             }
 
             if is_baseline:
-                # 基準班門檻提高到 70% 才列出
                 if stats["不及格比例"] >= 0.70:
                     baseline_alerts.append(alert)
             else:

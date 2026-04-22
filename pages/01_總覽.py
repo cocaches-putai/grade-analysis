@@ -30,6 +30,7 @@ if CLASS_CONFIG_PATH.exists():
 baseline_classes = class_config.get("baseline_classes", [])
 social_classes = class_config.get("social_classes", [])
 social_excluded_subjects = class_config.get("social_excluded_subjects", [])
+science_excluded_subjects = class_config.get("science_excluded_subjects", [])
 
 st.title(f"📋 總覽 — {exam.exam_name}")
 
@@ -50,6 +51,7 @@ alert_groups = fail_rate_alerts(
     baseline_classes=baseline_classes,
     social_classes=social_classes,
     social_excluded_subjects=social_excluded_subjects,
+    science_excluded_subjects=science_excluded_subjects,
 )
 diff_alerts = difficulty_alerts(df)
 anomalies = detect_anomalies(df)

@@ -371,19 +371,30 @@ if all_classes:
         st.markdown("**社會組不列入警示的科目**")
         st.caption("通常為生物、物理、化學、地科及其選修科目。")
         selected_social_excl = st.multiselect(
-            "選擇排除科目",
+            "選擇排除科目（社會組）",
             options=all_subjects,
             default=[s for s in class_config.get("social_excluded_subjects", []) if s in all_subjects],
             key="social_excluded_subjects",
         )
+
+        st.markdown("**自然組不列入警示的科目**")
+        st.caption("自然組由社會組反向推算（高二/高三）。通常排除歷史、地理、公民，國文照樣列入。")
+        selected_science_excl = st.multiselect(
+            "選擇排除科目（自然組）",
+            options=all_subjects,
+            default=[s for s in class_config.get("science_excluded_subjects", []) if s in all_subjects],
+            key="science_excluded_subjects",
+        )
     else:
         selected_social_excl = class_config.get("social_excluded_subjects", [])
+        selected_science_excl = class_config.get("science_excluded_subjects", [])
 
     if st.button("儲存班級分組設定"):
         new_config = {
             "baseline_classes": selected_baseline,
             "social_classes": selected_social,
             "social_excluded_subjects": selected_social_excl,
+            "science_excluded_subjects": selected_science_excl,
         }
         DATA_DIR.mkdir(exist_ok=True)
         with open(CLASS_CONFIG_PATH, "w", encoding="utf-8") as f:
