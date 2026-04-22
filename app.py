@@ -63,46 +63,56 @@ with st.expander("➕ 上傳新考試成績"):
     scores_file = st.file_uploader("成績 Excel（必填）", type=["xlsx"], key="upload_scores")
     items_file = st.file_uploader("試題得分 Excel（選填，供試題分析用）", type=["xlsx"], key="upload_items")
 
-    if st.button("上傳並儲存") and exam_id and exam_name and scores_file:
-        df = pd.read_excel(scores_file)
-        preprocess_warnings = []
-        if is_school_format(df):
-            df, preprocess_warnings = preprocess_school_excel(df)
-            st.info("✅ 偵測到學校成績系統格式，已自動轉換")
-        for w in preprocess_warnings:
-            st.warning(f"⚠️ {w}")
-        errors = validate_scores_df(df)
-        if errors:
-            for e in errors:
-                st.error(e)
+    if st.button("上傳並儲存"):
+        if not exam_id:
+            st.error("請填寫考試代號")
+        elif not exam_name:
+            st.error("請填寫考試名稱")
+        elif not scores_file:
+            st.error("請上傳成績 Excel 檔案")
         else:
-            scores_df = load_scores_from_df(df)
-            items_df = None
-            if items_file:
-                idf = pd.read_excel(items_file)
-                ierrors = validate_items_df(idf)
-                if ierrors:
-                    for e in ierrors:
-                        st.warning(f"試題資料：{e}")
+            try:
+                df = pd.read_excel(scores_file)
+                preprocess_warnings = []
+                if is_school_format(df):
+                    df, preprocess_warnings = preprocess_school_excel(df)
+                    st.info("✅ 偵測到學校成績系統格式，已自動轉換")
+                for w in preprocess_warnings:
+                    st.warning(f"⚠️ {w}")
+                errors = validate_scores_df(df)
+                if errors:
+                    for e in errors:
+                        st.error(e)
                 else:
-                    items_df = load_items_from_df(idf)
+                    scores_df = load_scores_from_df(df)
+                    items_df = None
+                    if items_file:
+                        idf = pd.read_excel(items_file)
+                        ierrors = validate_items_df(idf)
+                        if ierrors:
+                            for e in ierrors:
+                                st.warning(f"試題資料：{e}")
+                        else:
+                            items_df = load_items_from_df(idf)
 
-            teacher_map = {}
-            if TEACHER_MAP_PATH.exists():
-                with open(TEACHER_MAP_PATH, "r", encoding="utf-8") as f:
-                    teacher_map = json.load(f)
+                    teacher_map = {}
+                    if TEACHER_MAP_PATH.exists():
+                        with open(TEACHER_MAP_PATH, "r", encoding="utf-8") as f:
+                            teacher_map = json.load(f)
 
-            record = ExamRecord(
-                exam_id=exam_id,
-                exam_name=exam_name,
-                scores_df=scores_df,
-                items_df=items_df,
-                teacher_map=teacher_map,
-            )
-            save_exam(record)
-            st.session_state["exam"] = record
-            st.success(f"✅ 考試「{exam_name}」已儲存並載入")
-            st.rerun()
+                    record = ExamRecord(
+                        exam_id=exam_id,
+                        exam_name=exam_name,
+                        scores_df=scores_df,
+                        items_df=items_df,
+                        teacher_map=teacher_map,
+                    )
+                    save_exam(record)
+                    st.session_state["exam"] = record
+                    st.success(f"✅ 考試「{exam_name}」已儲存並載入")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"上傳失敗：{e}")
 
 # ── 目前載入狀態 ───────────────────────────────────────────────
 if "exam" in st.session_state:
