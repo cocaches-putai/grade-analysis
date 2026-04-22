@@ -46,10 +46,18 @@ with tab1:
             return "、".join(parts) if parts else "—"
         display_df = raw_df[["姓名", "年級", "班級", "不及格科目數"]].copy()
         display_df["不及格科目（分數）"] = raw_df.apply(_fail_summary, axis=1)
+
+        def _highlight_count(val):
+            if val >= 5:
+                return "background-color: #fca5a5"
+            elif val >= 3:
+                return "background-color: #fed7aa"
+            elif val >= 1:
+                return "background-color: #fef9c3"
+            return ""
+
         st.dataframe(
-            display_df.style.background_gradient(
-                subset=["不及格科目數"], cmap="OrRd", vmin=0, vmax=len(subj_cols)
-            ),
+            display_df.style.applymap(_highlight_count, subset=["不及格科目數"]),
             use_container_width=True, hide_index=True,
         )
 
