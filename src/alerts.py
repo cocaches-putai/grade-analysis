@@ -11,25 +11,58 @@ from src.stats import get_subject_cols, class_stats
 _META_COLS = ["姓名", "年級", "班級"]
 
 
-def fail_rate_alerts(df: pd.DataFrame, threshold: float = ALERT_FAIL_RATE_THRESHOLD) -> List[Dict]:
-    """回傳不及格比例超過門檻的班級-科目警示清單"""
-    alerts = []
+def fail_rate_alerts(
+    df: pd.DataFrame,
+    threshold: float = ALERT_FAIL_RATE_THRESHOLD,
+    baseline_classes: List[str] = [],
+    social_classes: List[str] = [],
+    social_excluded_subjects: List[str] = [],
+) -> Dict[str, List[Dict]]:
+    """
+    回傳警示清單，分為兩組：
+    - "一般": 排除基準班與社會組非主修科目
+    - "基準班": 甲/己等基準班的獨立警示
+    """
+    main_alerts = []
+    baseline_alerts = []
     subjects = get_subject_cols(df)
+
     for grade_class in df["班級"].unique():
+        is_baseline = grade_class in baseline_classes
+        is_social = grade_class in social_classes
+
         for subj in subjects:
+            # 社會組 + 非主修科目 → 直接略過
+            if is_social and subj in social_excluded_subjects:
+                continue
+
             stats = class_stats(df, grade_class, subj)
-            if stats["不及格比例"] is not None and stats["不及格比例"] >= threshold:
-                alerts.append({
-                    "班級": grade_class,
-                    "科目": subj,
-                    "不及格比例": stats["不及格比例"],
-                    "不及格人數": stats["不及格人數"],
-                    "訊息": (
-                        f"【{grade_class}】{subj} 不及格比例 {stats['不及格比例']:.0%}"
-                        f"（{stats['不及格人數']}/{stats['人數']}人）"
-                    )
-                })
-    return sorted(alerts, key=lambda x: x["不及格比例"], reverse=True)
+            if stats["不及格比例"] is None:
+                continue
+
+            alert = {
+                "班級": grade_class,
+                "科目": subj,
+                "不及格比例": stats["不及格比例"],
+                "不及格人數": stats["不及格人數"],
+                "訊息": (
+                    f"【{grade_class}】{subj} 不及格比例 {stats['不及格比例']:.0%}"
+                    f"（{stats['不及格人數']}/{stats['人數']}人）"
+                )
+            }
+
+            if is_baseline:
+                # 基準班門檻提高到 70% 才列出
+                if stats["不及格比例"] >= 0.70:
+                    baseline_alerts.append(alert)
+            else:
+                if stats["不及格比例"] >= threshold:
+                    main_alerts.append(alert)
+
+    return {
+        "一般": sorted(main_alerts, key=lambda x: x["不及格比例"], reverse=True),
+        "基準班": sorted(baseline_alerts, key=lambda x: x["不及格比例"], reverse=True),
+    }
 
 
 def difficulty_alerts(df: pd.DataFrame, threshold: float = ALERT_EASY_THRESHOLD) -> List[str]:

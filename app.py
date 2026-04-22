@@ -332,6 +332,68 @@ else:
         st.info("請先載入考試資料，再設定資優班。")
 
 st.divider()
+
+# ── 班級分組設定 ───────────────────────────────────────────────
+st.header("班級分組設定")
+st.caption("設定基準班與社會組，讓總覽警示更精準，避免可預期的高不及格率干擾判斷。")
+
+CLASS_CONFIG_PATH = DATA_DIR / "class_config.json"
+class_config: dict = {}
+if CLASS_CONFIG_PATH.exists():
+    with open(CLASS_CONFIG_PATH, "r", encoding="utf-8") as f:
+        class_config = json.load(f)
+
+all_subjects: list = []
+if "exam" in st.session_state:
+    from src.stats import get_subject_cols
+    all_subjects = sorted(get_subject_cols(st.session_state["exam"].scores_df))
+
+if all_classes:
+    st.markdown("**基準班（甲/己班）**")
+    st.caption("這些班在總覽警示中會獨立顯示，門檻提高至 70%，不與一般班混合比較。")
+    selected_baseline = st.multiselect(
+        "選擇基準班",
+        options=all_classes,
+        default=[c for c in class_config.get("baseline_classes", []) if c in all_classes],
+        key="baseline_classes",
+    )
+
+    st.markdown("**社會組班級**")
+    st.caption("社會組班級的理科科目（下方設定）不列入一般警示，避免可預期的低分干擾。")
+    selected_social = st.multiselect(
+        "選擇社會組班級",
+        options=all_classes,
+        default=[c for c in class_config.get("social_classes", []) if c in all_classes],
+        key="social_classes",
+    )
+
+    if all_subjects:
+        st.markdown("**社會組不列入警示的科目**")
+        st.caption("通常為生物、物理、化學、地科及其選修科目。")
+        selected_social_excl = st.multiselect(
+            "選擇排除科目",
+            options=all_subjects,
+            default=[s for s in class_config.get("social_excluded_subjects", []) if s in all_subjects],
+            key="social_excluded_subjects",
+        )
+    else:
+        selected_social_excl = class_config.get("social_excluded_subjects", [])
+
+    if st.button("儲存班級分組設定"):
+        new_config = {
+            "baseline_classes": selected_baseline,
+            "social_classes": selected_social,
+            "social_excluded_subjects": selected_social_excl,
+        }
+        DATA_DIR.mkdir(exist_ok=True)
+        with open(CLASS_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(new_config, f, ensure_ascii=False, indent=2)
+        st.success("✅ 班級分組設定已儲存")
+        st.rerun()
+else:
+    st.info("請先載入考試資料，再設定班級分組。")
+
+st.divider()
 if st.button("登出"):
     st.session_state.clear()
     st.rerun()
