@@ -58,11 +58,14 @@ st.subheader(f"{selected_class} 各科與全科平均比較")
 st.caption("偏差 = 該科平均 − 全科平均，黃底標示偏低 8 分以上的科目。")
 dev_df = class_subject_deviation(df, selected_class, subjects)
 if not dev_df.empty:
+    num_cols = [c for c in dev_df.columns if c != "科目" and c != "⚠️"]
     st.dataframe(
-        dev_df.style.apply(
-            lambda row: ["background-color: #fef9c3" if row["偏差"] <= -8 else "" for _ in row],
-            axis=1
-        ),
+        dev_df.style
+            .format({c: "{:.2f}" for c in num_cols})
+            .apply(
+                lambda row: ["background-color: #fef9c3" if row["偏差"] <= -8 else "" for _ in row],
+                axis=1
+            ),
         use_container_width=True, hide_index=True,
     )
 
@@ -78,7 +81,10 @@ for subj in subjects:
         "科目": subj, "平均": s["平均"], "最高": s["最高分"], "最低": s["最低分"],
         "不及格人數": s["不及格人數"], "不及格比例": fail_rate,
     })
-st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+st.dataframe(
+    pd.DataFrame(summary_rows).style.format({"平均": "{:.2f}"}),
+    use_container_width=True, hide_index=True,
+)
 
 # ── 跨考試趨勢（若有多筆資料）────────────────────────────────
 from src.storage import list_exams, load_exam as _load_exam
