@@ -27,4 +27,12 @@ ALERT_ANOMALY_HISTORY_DIFF = 30.0
 TUTORING_MIN_FAIL_SUBJECTS = 2
 
 import os
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "ptgs2024")
+import streamlit as st
+
+def _get_password() -> str:
+    try:
+        return st.secrets["APP_PASSWORD"]
+    except Exception:
+        return os.environ.get("APP_PASSWORD", "ptgs2024")
+
+APP_PASSWORD = _get_password()
