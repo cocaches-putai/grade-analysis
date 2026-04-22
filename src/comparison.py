@@ -32,9 +32,8 @@ def cross_class_comparison(
 
 
 def get_grades(df: pd.DataFrame) -> List[str]:
-    """回傳資料中所有年段，排序後加上『全部年段』選項"""
-    grades = sort_grades(df["年級"].unique().tolist())
-    return ["全部年段"] + grades
+    """回傳資料中所有年段，排序"""
+    return sort_grades(df["年級"].unique().tolist())
 
 
 def fairness_check(

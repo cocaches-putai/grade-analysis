@@ -45,13 +45,12 @@ with col2:
     all_grades = get_grades(df)
     selected_grade = st.selectbox("年段篩選", all_grades)
 
-grade_filter = None if selected_grade == "全部年段" else selected_grade
+grade_filter = selected_grade
 
 st.divider()
 
 # ── 跨班比較 ──────────────────────────────────────────────────
-grade_label = selected_grade if selected_grade != "全部年段" else "全年段"
-st.subheader(f"{selected_subject} 跨班成績比較（{grade_label}）")
+st.subheader(f"{selected_subject} 跨班成績比較（{selected_grade}）")
 comparison = cross_class_comparison(df, selected_subject, teacher_map, grade=grade_filter)
 fig = bar_chart(comparison, x_col="班級", y_col="平均",
                 title=f"{selected_subject} 各班平均分", threshold_line=60.0)
