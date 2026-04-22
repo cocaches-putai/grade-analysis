@@ -66,7 +66,7 @@ if not has_any:
 else:
     # 一般班級警示
     if main_alerts:
-        st.markdown("**不及格比例過高（一般班級）：**")
+        st.markdown("**不及格比例過高（一般班級，門檻 30%）：**")
         for a in main_alerts[:10]:
             icon = fail_rate_color(a["不及格比例"])
             st.write(f"{icon} {a['訊息']}")
@@ -74,8 +74,11 @@ else:
     # 基準班獨立區塊
     if baseline_alerts:
         st.markdown("---")
-        st.markdown("**甲／己班狀況（供參考，門檻 70%）：**")
-        st.caption("甲、己班學生成績基準較低，以下為特別嚴重的項目。")
+        st.markdown("**程度分組班（甲／己班）不及格狀況：**")
+        st.caption(
+            "以下為程度分組班（整體學習基準較低的班級）之警示，門檻為 70%。"
+            "此區塊僅供參考，不代表教學成效異常，請勿與一般班級直接比較。"
+        )
         for a in baseline_alerts[:8]:
             icon = fail_rate_color(a["不及格比例"])
             st.write(f"{icon} {a['訊息']}")

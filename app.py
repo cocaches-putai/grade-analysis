@@ -349,8 +349,8 @@ if "exam" in st.session_state:
     all_subjects = sorted(get_subject_cols(st.session_state["exam"].scores_df))
 
 if all_classes:
-    st.markdown("**基準班（甲/己班）**")
-    st.caption("這些班在總覽警示中會獨立顯示，門檻提高至 70%，不與一般班混合比較。")
+    st.markdown("**程度分組班（甲/己班）**")
+    st.caption("此類班級的學生整體成績基準較低（如補救或資源班性質）。警示門檻提高至 70%，並在總覽中獨立呈現，不與一般班混合比較，避免影響整體判讀。")
     selected_baseline = st.multiselect(
         "選擇基準班",
         options=all_classes,
