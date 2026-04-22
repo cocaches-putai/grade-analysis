@@ -53,7 +53,7 @@ alert_groups = fail_rate_alerts(
     social_excluded_subjects=social_excluded_subjects,
     science_excluded_subjects=science_excluded_subjects,
 )
-diff_alerts = difficulty_alerts(df)
+diff_alerts = difficulty_alerts(df, baseline_classes=baseline_classes)
 anomalies = detect_anomalies(df)
 
 main_alerts = alert_groups["一般"]

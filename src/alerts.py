@@ -85,19 +85,38 @@ def fail_rate_alerts(
     }
 
 
-def difficulty_alerts(df: pd.DataFrame, threshold: float = ALERT_EASY_THRESHOLD) -> List[str]:
-    """班級平均低於門檻，警示試卷可能偏難"""
+def difficulty_alerts(
+    df: pd.DataFrame,
+    threshold: float = ALERT_EASY_THRESHOLD,
+    baseline_classes: List[str] = [],
+) -> List[str]:
+    """
+    以科目＋年級為單位，排除基準班後計算平均。
+    若非基準班的年級平均低於門檻，才警示試卷偏難。
+    """
     alerts = []
     subjects = get_subject_cols(df)
-    for grade_class in df["班級"].unique():
+
+    for grade in df["年級"].unique():
+        grade_df = df[df["年級"] == grade]
+        # 排除基準班
+        ref_df = grade_df[~grade_df["班級"].isin(baseline_classes)]
+        if ref_df.empty:
+            ref_df = grade_df  # 若全部都是基準班，還是用全部
+
         for subj in subjects:
-            stats = class_stats(df, grade_class, subj)
-            if stats["平均"] is not None and stats["平均"] < threshold:
+            col = ref_df[subj].dropna()
+            if col.empty:
+                continue
+            avg = round(float(col.mean()), 1)
+            if avg < threshold:
+                note = "（已排除基準班）" if baseline_classes else ""
                 alerts.append(
-                    f"【{grade_class}】{subj} 班級平均 {stats['平均']} 分，"
+                    f"【{grade}】{subj} 年級平均 {avg} 分{note}，"
                     f"低於 {threshold} 分，試卷可能偏難"
                 )
-    return alerts
+
+    return sorted(alerts)
 
 
 def tutoring_list(
